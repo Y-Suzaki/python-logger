@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import traceback
+import threading
 
 
 class FormatterJSON(logging.Formatter):
@@ -31,10 +32,15 @@ class FormatterJSON(logging.Formatter):
 
 class LambdaJsonLogger:
     FORMATTER = FormatterJSON('[%(levelname)s]\t%(asctime)s\t%(message)s\n', '%Y-%m-%dT%H:%M:%SZ')
+    _instance = None
+    _lock = threading.Lock()
 
     @classmethod
     def get_logger(cls):
-        return LambdaJsonLogger(os.environ.get('LOG_LEVEL', 'DEBUG'))
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = LambdaJsonLogger(os.environ.get('LOG_LEVEL', 'DEBUG'))
+        return cls._instance
 
     def __init__(self, level):
         self._logger = logging.getLogger(__name__)
@@ -77,6 +83,8 @@ class LambdaJsonLogger:
 
 if __name__ == '__main__':
     def raise_value_error():
+        _logger = LambdaJsonLogger.get_logger()
+        _logger.debug('raise_value_error.')
         raise ValueError('Invalid values.')
 
     _extra = {'a': 'abc', 'b': 'def', 'c': 123}
